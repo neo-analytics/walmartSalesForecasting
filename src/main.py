@@ -25,8 +25,8 @@ def main():
 
     # ── EDA ───────────────────────────────────────────────────────
     t0 = time.time()
-    eda_paths = run_eda(df)
-    print(f"  EDA           : {time.time() - t0:.1f}s  ({len(eda_paths)} plots)")
+    eda = run_eda(df)
+    print(f"  EDA           : {time.time() - t0:.1f}s  ({len(eda)} plots)")
 
     # ── Modeling ──────────────────────────────────────────────────
     t0 = time.time()
