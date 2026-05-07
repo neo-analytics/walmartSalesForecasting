@@ -1,7 +1,5 @@
 import pandas as pd
-import numpy as np
-import json
-from config import RAW_DATA_FILE, FEATURE_COLS, TARGET_COL, LAG_PERIODS, ROLLING_WINDOW
+from config import RAW_DATA_FILE
 
 
 # -----------------------------------------------------------------------------
@@ -51,36 +49,18 @@ def describe_data(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # -----------------------------------------------------------------------------
-# 4. Feature Engineering
+# 4. Time Feature Engineering
 # -----------------------------------------------------------------------------
 def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
-    
     df = df.copy()
 
-    # Temporal
     df["Year"] = df["Date"].dt.year
     df["Month"] = df["Date"].dt.month
     df["Week"] = df["Date"].dt.isocalendar().week.astype(int)
 
-    # Lag features (per store to avoid cross-store leakage)
-    for lag in LAG_PERIODS:
-        col = f"lag{lag}"
-        df[col] = df.groupby("Store")[TARGET_COL].shift(lag)
-
-    # Rolling mean (shifted so it doesn't leak current week)
-    df["rolling_mean4"] = df.groupby("Store")[TARGET_COL].transform(
-        lambda x: x.shift(1).rolling(ROLLING_WINDOW).mean()
-    )
-
-    n_before = len(df)
-    df = df.dropna().reset_index(drop=True)
-    n_after = len(df)
-    print(f"\n[engineer_features] Lag/rolling features added.")
-    print(f"  Rows before dropna : {n_before:,}")
-    print(
-        f"  Rows after  dropna : {n_after:,}  (dropped {n_before - n_after} NaN rows)"
-    )
-    print(f"  Final features     : {FEATURE_COLS}")
+    print(f"\n[engineer_features] Time features added for EDA and reporting.")
+    print("  Added columns: ['Year', 'Month', 'Week']")
+    print(f"  Rows retained: {len(df):,}")
 
     return df
 

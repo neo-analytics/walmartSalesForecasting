@@ -1,6 +1,7 @@
 import os
 import json
 import pickle
+import warnings
 import numpy as np
 import pandas as pd
 import matplotlib
@@ -8,17 +9,12 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.linear_model import LinearRegression
-from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from statsmodels.tsa.arima.model import ARIMA
+from statsmodels.tools.sm_exceptions import ConvergenceWarning
 
 from config import (
-    FEATURE_COLS,
     TARGET_COL,
-    RF_N_ESTIMATORS,
-    RF_MAX_DEPTH,
-    RF_RANDOM_STATE,
-    RF_N_JOBS,
+    ARIMA_ORDER,
     MODEL_FILE,
     STATS_FILE,
     PLOTS_DIR,
@@ -32,69 +28,126 @@ os.makedirs(PLOTS_DIR, exist_ok=True)
 
 
 # -----------------------------------------------------------------------------
-# Metric Helper
+# Metric Helpers
 # -----------------------------------------------------------------------------
 def compute_metrics(y_true, y_pred, model_name: str) -> dict:
+    y_true = np.asarray(y_true, dtype=float)
+    y_pred = np.asarray(y_pred, dtype=float)
 
-    mae = mean_absolute_error(y_true, y_pred)
-    rmse = np.sqrt(mean_squared_error(y_true, y_pred))
-    r2 = r2_score(y_true, y_pred)
-    mape = np.mean(np.abs((y_true - y_pred) / y_true)) * 100
+    mae = np.mean(np.abs(y_true - y_pred))
+    rmse = np.sqrt(np.mean((y_true - y_pred) ** 2))
+    ss_res = np.sum((y_true - y_pred) ** 2)
+    ss_tot = np.sum((y_true - np.mean(y_true)) ** 2)
+    r2 = 1 - (ss_res / ss_tot) if ss_tot else 0.0
+    nonzero = y_true != 0
+    mape = np.mean(np.abs((y_true[nonzero] - y_pred[nonzero]) / y_true[nonzero])) * 100
 
     print(f"\n[model] {model_name} - Test Set Metrics:")
     print(f"  MAE  : ${mae:,.0f}")
     print(f"  RMSE : ${rmse:,.0f}")
-    print(f"  R^2   : {r2:.4f}  ({r2*100:.2f}% variance explained)")
+    print(f"  R^2  : {r2:.4f}  ({r2 * 100:.2f}% variance explained)")
     print(f"  MAPE : {mape:.2f}%")
 
     return {"mae": mae, "rmse": rmse, "r2": r2, "mape": mape}
 
 
-# -----------------------------------------------------------------------------
-# 1. Baseline - Linear Regression
-# -----------------------------------------------------------------------------
-def train_linear_regression(X_train, y_train, X_test, y_test) -> dict:
-    
-    lr = LinearRegression()
-    lr.fit(X_train, y_train)
-    y_pred = lr.predict(X_test)
-    metrics = compute_metrics(y_test, y_pred, "Linear Regression (Baseline)")
-    return metrics
-
-
-# -----------------------------------------------------------------------------
-# 2. Random Forest
-# -----------------------------------------------------------------------------
-def train_random_forest(X_train, y_train) -> RandomForestRegressor:
-
-    print(f"\n[model] Training RandomForestRegressor ...")
-    print(f"  n_estimators : {RF_N_ESTIMATORS}")
-    print(f"  max_depth    : {RF_MAX_DEPTH}")
-    print(f"  random_state : {RF_RANDOM_STATE}")
-    print(f"  n_jobs       : {RF_N_JOBS}")
-    print(f"  Training rows: {len(X_train):,}")
-
-    rf = RandomForestRegressor(
-        n_estimators=RF_N_ESTIMATORS,
-        max_depth=RF_MAX_DEPTH,
-        random_state=RF_RANDOM_STATE,
-        n_jobs=RF_N_JOBS,
+def _store_series(data: pd.DataFrame, store_id: int) -> pd.Series:
+    series = (
+        data[data["Store"] == store_id]
+        .sort_values("Date")
+        .set_index("Date")[TARGET_COL]
+        .astype(float)
     )
-    rf.fit(X_train, y_train)
-    print("  [OK] Training complete.")
-    return rf
+
+    freq = pd.infer_freq(series.index)
+    if freq:
+        series = series.asfreq(freq)
+    if series.isna().any():
+        series = series.interpolate(method="time").ffill().bfill()
+
+    return series
+
+
+# -----------------------------------------------------------------------------
+# 1. Baseline - Naive Last Observed Value
+# -----------------------------------------------------------------------------
+def evaluate_naive_baseline(train: pd.DataFrame, test: pd.DataFrame) -> dict:
+    predictions = []
+
+    for store_id in sorted(test["Store"].unique()):
+        train_series = _store_series(train, store_id)
+        test_series = _store_series(test, store_id)
+        last_value = train_series.iloc[-1]
+        predictions.extend([last_value] * len(test_series))
+
+    return compute_metrics(test[TARGET_COL], predictions, "Naive Last-Value Baseline")
+
+
+# -----------------------------------------------------------------------------
+# 2. ARIMA Modeling
+# -----------------------------------------------------------------------------
+def fit_arima(series: pd.Series):
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=UserWarning)
+        warnings.filterwarnings("ignore", category=ConvergenceWarning)
+        return ARIMA(
+            series,
+            order=ARIMA_ORDER,
+            enforce_stationarity=False,
+            enforce_invertibility=False,
+        ).fit()
+
+
+def train_arima_models(data: pd.DataFrame) -> dict:
+    stores = sorted(data["Store"].unique())
+    models = {}
+
+    print(f"\n[model] Training ARIMA{ARIMA_ORDER} models ...")
+    print(f"  Stores       : {len(stores)}")
+    print(f"  Training rows: {len(data):,}")
+
+    for store_id in stores:
+        series = _store_series(data, store_id)
+        models[int(store_id)] = fit_arima(series)
+
+    print("  [OK] ARIMA training complete.")
+    return models
+
+
+def evaluate_arima_models(train: pd.DataFrame, test: pd.DataFrame) -> tuple:
+    rows = []
+
+    print(f"\n[model] Evaluating ARIMA{ARIMA_ORDER} on holdout period ...")
+    for store_id in sorted(test["Store"].unique()):
+        train_series = _store_series(train, store_id)
+        test_series = _store_series(test, store_id)
+        result = fit_arima(train_series)
+        forecast = result.forecast(steps=len(test_series))
+        y_pred = np.maximum(np.asarray(forecast, dtype=float), 0)
+
+        for date, actual, pred in zip(test_series.index, test_series.values, y_pred):
+            rows.append(
+                {
+                    "Store": int(store_id),
+                    "Date": date,
+                    "Actual": float(actual),
+                    "Predicted": float(pred),
+                }
+            )
+
+    pred_df = pd.DataFrame(rows)
+    metrics = compute_metrics(
+        pred_df["Actual"], pred_df["Predicted"], f"ARIMA{ARIMA_ORDER} (Final Model)"
+    )
+    return pred_df, metrics
 
 
 # -----------------------------------------------------------------------------
 # 3. Plot - Actual vs Predicted
 # -----------------------------------------------------------------------------
-def plot_actual_vs_predicted(test_df: pd.DataFrame, y_pred: np.ndarray) -> str:
-
-    test_df = test_df.copy()
-    test_df["Predicted"] = y_pred
-
-    actual_by_date = test_df.groupby("Date")[TARGET_COL].sum()
-    pred_by_date = test_df.groupby("Date")["Predicted"].sum()
+def plot_actual_vs_predicted(pred_df: pd.DataFrame) -> str:
+    actual_by_date = pred_df.groupby("Date")["Actual"].sum()
+    pred_by_date = pred_df.groupby("Date")["Predicted"].sum()
 
     fig, ax = plt.subplots(figsize=(12, 4))
     ax.plot(
@@ -121,7 +174,7 @@ def plot_actual_vs_predicted(test_df: pd.DataFrame, y_pred: np.ndarray) -> str:
         label="Error band",
     )
     ax.set_title(
-        "Actual vs Predicted Total Weekly Sales (Test Period - Last 12 Weeks)",
+        "Actual vs Predicted Total Weekly Sales (ARIMA Holdout)",
         fontsize=13,
         fontweight="bold",
     )
@@ -139,63 +192,75 @@ def plot_actual_vs_predicted(test_df: pd.DataFrame, y_pred: np.ndarray) -> str:
 
 
 # -----------------------------------------------------------------------------
-# 4. Plot - Feature Importance
+# 4. Plot - Per-Store ARIMA Error
 # -----------------------------------------------------------------------------
-def plot_feature_importance(rf: RandomForestRegressor) -> str:
+def plot_store_mape(pred_df: pd.DataFrame) -> str:
+    scores = {}
+    for store_id, group in pred_df.groupby("Store"):
+        actual = group["Actual"].to_numpy(dtype=float)
+        pred = group["Predicted"].to_numpy(dtype=float)
+        nonzero = actual != 0
+        scores[int(store_id)] = (
+            np.mean(np.abs((actual[nonzero] - pred[nonzero]) / actual[nonzero])) * 100
+        )
 
-    fi = pd.Series(rf.feature_importances_, index=FEATURE_COLS).sort_values(
-        ascending=True
+    mape_by_store = pd.Series(scores).sort_values(ascending=True)
+
+    fig, ax = plt.subplots(figsize=(12, 5))
+    ax.bar(
+        mape_by_store.index.astype(str),
+        mape_by_store.values,
+        color=COLOR_PRIMARY,
+        edgecolor="white",
     )
-
-    fig, ax = plt.subplots(figsize=(8, 5))
-    fi.plot.barh(ax=ax, color=COLOR_PRIMARY, edgecolor="white")
-    ax.set_title("Feature Importance - Random Forest", fontsize=13, fontweight="bold")
-    ax.set_xlabel("Importance Score (Gini)")
-    ax.grid(axis="x", alpha=0.3)
+    ax.set_title("ARIMA Holdout MAPE by Store", fontsize=13, fontweight="bold")
+    ax.set_xlabel("Store")
+    ax.set_ylabel("MAPE (%)")
+    ax.grid(axis="y", alpha=0.3)
     plt.tight_layout()
 
-    path = os.path.join(PLOTS_DIR, "09_feature_importance.png")
+    path = os.path.join(PLOTS_DIR, "09_arima_store_mape.png")
     fig.savefig(path, dpi=PLOT_DPI, bbox_inches="tight")
     plt.close(fig)
 
-    print(f"\n[model] Feature Importances (top 5):")
-    for name, score in fi.sort_values(ascending=False).head(5).items():
-        print(f"  {name:20s}: {score:.4f}")
+    print(f"\n[model] Best ARIMA store MAPE scores:")
+    for store_id, score in mape_by_store.head(5).items():
+        print(f"  Store {store_id:2d}: {score:.2f}%")
     print(f"  Saved -> {path}")
 
     return path
 
 
 # -----------------------------------------------------------------------------
-# 5. Save Model
+# 5. Save / Load Model
 # -----------------------------------------------------------------------------
-def save_model(rf: RandomForestRegressor, path: str = MODEL_FILE):
-
+def save_model(models: dict, path: str = MODEL_FILE):
     with open(path, "wb") as f:
-        pickle.dump(rf, f)
+        pickle.dump(models, f)
     size_mb = os.path.getsize(path) / 1e6
-    print(f"\n[model] [OK] Model saved -> {path}  ({size_mb:.1f} MB)")
+    print(f"\n[model] [OK] ARIMA models saved -> {path}  ({size_mb:.1f} MB)")
 
 
-def load_model(path: str = MODEL_FILE) -> RandomForestRegressor:
-
+def load_model(path: str = MODEL_FILE) -> dict:
     with open(path, "rb") as f:
-        rf = pickle.load(f)
-    print(f"[model] Model loaded from {path}")
-    return rf
+        models = pickle.load(f)
+    print(f"[model] ARIMA models loaded from {path}")
+    return models
 
 
 # -----------------------------------------------------------------------------
 # 6. Save Stats
 # -----------------------------------------------------------------------------
 def save_stats(stats: dict, path: str = STATS_FILE):
-
-    # Convert numpy types to native Python
     clean = {
         k: (
             float(v)
             if isinstance(v, (float, int, np.floating, np.integer))
-            else str(v) if not isinstance(v, str) else v
+            else list(v)
+            if isinstance(v, tuple)
+            else str(v)
+            if not isinstance(v, str)
+            else v
         )
         for k, v in stats.items()
     }
@@ -208,38 +273,28 @@ def save_stats(stats: dict, path: str = STATS_FILE):
 # Main Pipeline
 # -----------------------------------------------------------------------------
 def run_modeling(df: pd.DataFrame, train: pd.DataFrame, test: pd.DataFrame) -> tuple:
-    
     print("=" * 60)
-    print("  MODEL TRAINING & EVALUATION")
+    print("  ARIMA MODEL TRAINING & EVALUATION")
     print("=" * 60)
 
-    X_train, y_train = train[FEATURE_COLS], train[TARGET_COL]
-    X_test, y_test = test[FEATURE_COLS], test[TARGET_COL]
+    baseline_metrics = evaluate_naive_baseline(train, test)
+    pred_df, arima_metrics = evaluate_arima_models(train, test)
 
-    # Baseline
-    lr_metrics = train_linear_regression(X_train, y_train, X_test, y_test)
+    plot_actual_vs_predicted(pred_df)
+    plot_store_mape(pred_df)
 
-    # Random Forest
-    rf = train_random_forest(X_train, y_train)
-    y_pred = rf.predict(X_test)
-    rf_metrics = compute_metrics(y_test, y_pred, "Random Forest (Final Model)")
+    final_models = train_arima_models(df)
+    save_model(final_models)
 
-    # Plots
-    plot_actual_vs_predicted(test, y_pred)
-    plot_feature_importance(rf)
-
-    # Save model
-    save_model(rf)
-
-    # Compile stats (used by report generator)
     store_sales = df.groupby("Store")[TARGET_COL].mean().sort_values(ascending=False)
     holiday_sales = df.groupby("Holiday_Flag")[TARGET_COL].mean()
     holiday_pct = (holiday_sales[1] - holiday_sales[0]) / holiday_sales[0] * 100
 
     all_stats = {
-        **rf_metrics,
-        "lr_mae": lr_metrics["mae"],
-        "lr_r2": lr_metrics["r2"],
+        **arima_metrics,
+        "baseline_mae": baseline_metrics["mae"],
+        "baseline_r2": baseline_metrics["r2"],
+        "arima_order": ARIMA_ORDER,
         "n_stores": int(df["Store"].nunique()),
         "date_range": f"{df['Date'].min().date()} to {df['Date'].max().date()}",
         "holiday_pct_increase": float(holiday_pct),
@@ -250,7 +305,7 @@ def run_modeling(df: pd.DataFrame, train: pd.DataFrame, test: pd.DataFrame) -> t
     save_stats(all_stats)
 
     print("\n[run_modeling] [OK] Modeling complete.\n")
-    return rf, rf_metrics, all_stats
+    return final_models, arima_metrics, all_stats
 
 
 if __name__ == "__main__":

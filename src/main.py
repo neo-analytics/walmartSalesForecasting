@@ -30,12 +30,12 @@ def main():
 
     # -- Modeling --------------------------------------------------
     t0 = time.time()
-    rf, rf_metrics, all_stats = run_modeling(df, train, test)
+    arima_models, arima_metrics, all_stats = run_modeling(df, train, test)
     print(f"  Modeling      : {time.time() - t0:.1f}s")
 
     # -- Forecasting -----------------------------------------------
     t0 = time.time()
-    forecast_df = run_forecasting(df, rf)
+    forecast_df = run_forecasting(df, arima_models)
     print(
         f"  Forecasting   : {time.time() - t0:.1f}s  ({len(forecast_df):,} forecast rows)"
     )
@@ -46,14 +46,14 @@ def main():
     print("PIPELINE COMPLETE")
     print("=" * 60)
     print(f"  Total time     : {elapsed:.1f}s")
-    print(f"  R^2 Score       : {rf_metrics['r2']:.4f}")
-    print(f"  MAPE           : {rf_metrics['mape']:.2f}%")
-    print(f"  MAE            : ${rf_metrics['mae']:,.0f}")
+    print(f"  ARIMA R^2 Score : {arima_metrics['r2']:.4f}")
+    print(f"  ARIMA MAPE     : {arima_metrics['mape']:.2f}%")
+    print(f"  ARIMA MAE      : ${arima_metrics['mae']:,.0f}")
     print(f"  Forecast rows  : {len(forecast_df):,} (45 stores x 12 weeks)")
     print()
     print("Output files:")
     print("   outputs/plots/                  - 10 PNG visualisations")
-    print("   outputs/models/walmart_rf_model.pkl")
+    print("   outputs/models/walmart_arima_models.pkl")
     print("   outputs/forecasts/walmart_12week_forecast.csv")
     print("   outputs/model_stats.json")
     print("=" * 60 + "\n")
