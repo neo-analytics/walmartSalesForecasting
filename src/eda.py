@@ -20,9 +20,9 @@ from config import (
 os.makedirs(PLOTS_DIR, exist_ok=True)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # Helper
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 def _save(fig, filename: str):
     path = os.path.join(PLOTS_DIR, filename)
     fig.savefig(path, dpi=PLOT_DPI, bbox_inches="tight")
@@ -31,9 +31,9 @@ def _save(fig, filename: str):
     return path
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Plot 01 — Total Weekly Sales Trend
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# Plot 01 - Total Weekly Sales Trend
+# -----------------------------------------------------------------------------
 def plot_total_weekly_sales(df: pd.DataFrame) -> str:
 
     weekly_agg = df.groupby("Date")["Weekly_Sales"].sum().reset_index()
@@ -53,7 +53,7 @@ def plot_total_weekly_sales(df: pd.DataFrame) -> str:
         color=COLOR_PRIMARY,
     )
     ax.set_title(
-        "Total Weekly Sales Across All Stores (2010–2012)",
+        "Total Weekly Sales Across All Stores (2010-2012)",
         fontsize=14,
         fontweight="bold",
         pad=10,
@@ -64,7 +64,7 @@ def plot_total_weekly_sales(df: pd.DataFrame) -> str:
     ax.legend()
     plt.tight_layout()
 
-    print("\n[EDA] Plot 01 — Total Weekly Sales")
+    print("\n[EDA] Plot 01 - Total Weekly Sales")
     print(f"  Min weekly total : ${weekly_agg['Weekly_Sales'].min()/1e6:.2f}M")
     print(f"  Max weekly total : ${weekly_agg['Weekly_Sales'].max()/1e6:.2f}M")
     print(f"  Mean weekly total: ${weekly_agg['Weekly_Sales'].mean()/1e6:.2f}M")
@@ -72,9 +72,9 @@ def plot_total_weekly_sales(df: pd.DataFrame) -> str:
     return _save(fig, "01_total_weekly_sales.png")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Plot 02 — Sales by Store
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# Plot 02 - Sales by Store
+# -----------------------------------------------------------------------------
 def plot_sales_by_store(df: pd.DataFrame) -> str:
 
     store_sales = (
@@ -115,21 +115,21 @@ def plot_sales_by_store(df: pd.DataFrame) -> str:
     ax.legend(handles=patches, fontsize=9)
     plt.tight_layout()
 
-    print("\n[EDA] Plot 02 — Sales by Store")
+    print("\n[EDA] Plot 02 - Sales by Store")
     print(
-        f"  Top store    : Store {top10[0]}  → ${store_sales.iloc[0]/1e6:.3f}M avg/week"
+        f"  Top store    : Store {top10[0]}  -> ${store_sales.iloc[0]/1e6:.3f}M avg/week"
     )
     print(
-        f"  Bottom store : Store {bottom10[-1]} → ${store_sales.iloc[-1]/1e6:.3f}M avg/week"
+        f"  Bottom store : Store {bottom10[-1]} -> ${store_sales.iloc[-1]/1e6:.3f}M avg/week"
     )
     print(f"  Ratio (top/bottom): {store_sales.iloc[0]/store_sales.iloc[-1]:.1f}x")
 
     return _save(fig, "02_sales_by_store.png")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Plot 03 — Holiday vs Non-Holiday
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# Plot 03 - Holiday vs Non-Holiday
+# -----------------------------------------------------------------------------
 def plot_holiday_impact(df: pd.DataFrame) -> str:
 
     holiday_sales = df.groupby("Holiday_Flag")["Weekly_Sales"].mean()
@@ -176,7 +176,7 @@ def plot_holiday_impact(df: pd.DataFrame) -> str:
     )
     plt.tight_layout()
 
-    print("\n[EDA] Plot 03 — Holiday vs Non-Holiday")
+    print("\n[EDA] Plot 03 - Holiday vs Non-Holiday")
     print(f"  Non-holiday avg : ${holiday_sales[0]/1e6:.4f}M")
     print(f"  Holiday avg     : ${holiday_sales[1]/1e6:.4f}M")
     print(f"  % Increase      : {pct_increase:.2f}%")
@@ -184,9 +184,9 @@ def plot_holiday_impact(df: pd.DataFrame) -> str:
     return _save(fig, "03_holiday_vs_nonholiday.png")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Plot 04 — Monthly Sales
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# Plot 04 - Monthly Sales
+# -----------------------------------------------------------------------------
 def plot_monthly_sales(df: pd.DataFrame) -> str:
 
     monthly = df.groupby("Month")["Weekly_Sales"].mean()
@@ -224,23 +224,23 @@ def plot_monthly_sales(df: pd.DataFrame) -> str:
     ax.grid(axis="y", alpha=0.3)
 
     patches = [
-        mpatches.Patch(color=COLOR_SECONDARY, label="Peak (Nov–Dec)"),
+        mpatches.Patch(color=COLOR_SECONDARY, label="Peak (Nov-Dec)"),
         mpatches.Patch(color=COLOR_NEUTRAL, label="Post-holiday dip (Jan)"),
         mpatches.Patch(color=COLOR_PRIMARY, label="Stable baseline"),
     ]
     ax.legend(handles=patches, fontsize=9)
     plt.tight_layout()
 
-    print("\n[EDA] Plot 04 — Monthly Sales")
+    print("\n[EDA] Plot 04 - Monthly Sales")
     for m, name in enumerate(month_names, 1):
         print(f"  {name:3s}: ${monthly.get(m, 0)/1e6:.4f}M")
 
     return _save(fig, "04_monthly_sales.png")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Plot 05 — Correlation Heatmap
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# Plot 05 - Correlation Heatmap
+# -----------------------------------------------------------------------------
 def plot_correlation_heatmap(df: pd.DataFrame) -> str:
     
     cols = [
@@ -287,7 +287,7 @@ def plot_correlation_heatmap(df: pd.DataFrame) -> str:
     ax.set_title("Pearson Correlation Heatmap", fontsize=13, fontweight="bold", pad=10)
     plt.tight_layout()
 
-    print("\n[EDA] Plot 05 — Correlation Heatmap")
+    print("\n[EDA] Plot 05 - Correlation Heatmap")
     print("  Correlations with Weekly_Sales:")
     for col in cols[1:]:
         print(f"    {col:20s}: {corr.loc['Weekly_Sales', col]:+.4f}")
@@ -295,9 +295,9 @@ def plot_correlation_heatmap(df: pd.DataFrame) -> str:
     return _save(fig, "05_correlation_heatmap.png")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Plot 06 — Fuel Price vs Sales
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# Plot 06 - Fuel Price vs Sales
+# -----------------------------------------------------------------------------
 def plot_fuel_vs_sales(df: pd.DataFrame) -> str:
     
     fig, ax = plt.subplots(figsize=(7, 4))
@@ -315,18 +315,18 @@ def plot_fuel_vs_sales(df: pd.DataFrame) -> str:
     plt.tight_layout()
 
     corr = df["Fuel_Price"].corr(df["Weekly_Sales"])
-    print(f"\n[EDA] Plot 06 — Fuel Price vs Sales")
+    print(f"\n[EDA] Plot 06 - Fuel Price vs Sales")
     print(f"  Pearson correlation: {corr:.4f}")
     print(
-        f"  Fuel price range: ${df['Fuel_Price'].min():.2f} – ${df['Fuel_Price'].max():.2f}"
+        f"  Fuel price range: ${df['Fuel_Price'].min():.2f} - ${df['Fuel_Price'].max():.2f}"
     )
 
     return _save(fig, "06_fuel_vs_sales.png")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Plot 07 — Yearly Sales
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# Plot 07 - Yearly Sales
+# -----------------------------------------------------------------------------
 def plot_yearly_sales(df: pd.DataFrame) -> str:
     
     yearly = df.groupby("Year")["Weekly_Sales"].mean()
@@ -358,16 +358,16 @@ def plot_yearly_sales(df: pd.DataFrame) -> str:
     ax.set_ylim(0, max(yearly.values / 1e6) * 1.15)
     plt.tight_layout()
 
-    print("\n[EDA] Plot 07 — Yearly Sales")
+    print("\n[EDA] Plot 07 - Yearly Sales")
     for yr, val in yearly.items():
         print(f"  {yr}: ${val/1e6:.4f}M avg/week")
 
     return _save(fig, "07_yearly_sales.png")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # Run All EDA
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 def run_eda(df: pd.DataFrame) -> dict:
     
     print("=" * 60)
@@ -384,7 +384,7 @@ def run_eda(df: pd.DataFrame) -> dict:
         "yearly_sales": plot_yearly_sales(df),
     }
 
-    print(f"\n[run_eda] ✓ All {len(paths)} EDA plots saved to: {PLOTS_DIR}\n")
+    print(f"\n[run_eda] [OK] All {len(paths)} EDA plots saved to: {PLOTS_DIR}\n")
     return paths
 
 

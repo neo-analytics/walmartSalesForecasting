@@ -31,9 +31,9 @@ os.makedirs(os.path.dirname(MODEL_FILE), exist_ok=True)
 os.makedirs(PLOTS_DIR, exist_ok=True)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # Metric Helper
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 def compute_metrics(y_true, y_pred, model_name: str) -> dict:
 
     mae = mean_absolute_error(y_true, y_pred)
@@ -41,18 +41,18 @@ def compute_metrics(y_true, y_pred, model_name: str) -> dict:
     r2 = r2_score(y_true, y_pred)
     mape = np.mean(np.abs((y_true - y_pred) / y_true)) * 100
 
-    print(f"\n[model] {model_name} — Test Set Metrics:")
+    print(f"\n[model] {model_name} - Test Set Metrics:")
     print(f"  MAE  : ${mae:,.0f}")
     print(f"  RMSE : ${rmse:,.0f}")
-    print(f"  R²   : {r2:.4f}  ({r2*100:.2f}% variance explained)")
+    print(f"  R^2   : {r2:.4f}  ({r2*100:.2f}% variance explained)")
     print(f"  MAPE : {mape:.2f}%")
 
     return {"mae": mae, "rmse": rmse, "r2": r2, "mape": mape}
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 1. Baseline — Linear Regression
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# 1. Baseline - Linear Regression
+# -----------------------------------------------------------------------------
 def train_linear_regression(X_train, y_train, X_test, y_test) -> dict:
     
     lr = LinearRegression()
@@ -62,9 +62,9 @@ def train_linear_regression(X_train, y_train, X_test, y_test) -> dict:
     return metrics
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # 2. Random Forest
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 def train_random_forest(X_train, y_train) -> RandomForestRegressor:
 
     print(f"\n[model] Training RandomForestRegressor ...")
@@ -81,13 +81,13 @@ def train_random_forest(X_train, y_train) -> RandomForestRegressor:
         n_jobs=RF_N_JOBS,
     )
     rf.fit(X_train, y_train)
-    print("  ✓ Training complete.")
+    print("  [OK] Training complete.")
     return rf
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 3. Plot — Actual vs Predicted
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# 3. Plot - Actual vs Predicted
+# -----------------------------------------------------------------------------
 def plot_actual_vs_predicted(test_df: pd.DataFrame, y_pred: np.ndarray) -> str:
 
     test_df = test_df.copy()
@@ -121,7 +121,7 @@ def plot_actual_vs_predicted(test_df: pd.DataFrame, y_pred: np.ndarray) -> str:
         label="Error band",
     )
     ax.set_title(
-        "Actual vs Predicted Total Weekly Sales (Test Period — Last 12 Weeks)",
+        "Actual vs Predicted Total Weekly Sales (Test Period - Last 12 Weeks)",
         fontsize=13,
         fontweight="bold",
     )
@@ -134,13 +134,13 @@ def plot_actual_vs_predicted(test_df: pd.DataFrame, y_pred: np.ndarray) -> str:
     path = os.path.join(PLOTS_DIR, "08_actual_vs_predicted.png")
     fig.savefig(path, dpi=PLOT_DPI, bbox_inches="tight")
     plt.close(fig)
-    print(f"  [model] Saved → {path}")
+    print(f"  [model] Saved -> {path}")
     return path
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 4. Plot — Feature Importance
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# 4. Plot - Feature Importance
+# -----------------------------------------------------------------------------
 def plot_feature_importance(rf: RandomForestRegressor) -> str:
 
     fi = pd.Series(rf.feature_importances_, index=FEATURE_COLS).sort_values(
@@ -149,7 +149,7 @@ def plot_feature_importance(rf: RandomForestRegressor) -> str:
 
     fig, ax = plt.subplots(figsize=(8, 5))
     fi.plot.barh(ax=ax, color=COLOR_PRIMARY, edgecolor="white")
-    ax.set_title("Feature Importance — Random Forest", fontsize=13, fontweight="bold")
+    ax.set_title("Feature Importance - Random Forest", fontsize=13, fontweight="bold")
     ax.set_xlabel("Importance Score (Gini)")
     ax.grid(axis="x", alpha=0.3)
     plt.tight_layout()
@@ -161,20 +161,20 @@ def plot_feature_importance(rf: RandomForestRegressor) -> str:
     print(f"\n[model] Feature Importances (top 5):")
     for name, score in fi.sort_values(ascending=False).head(5).items():
         print(f"  {name:20s}: {score:.4f}")
-    print(f"  Saved → {path}")
+    print(f"  Saved -> {path}")
 
     return path
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # 5. Save Model
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 def save_model(rf: RandomForestRegressor, path: str = MODEL_FILE):
 
     with open(path, "wb") as f:
         pickle.dump(rf, f)
     size_mb = os.path.getsize(path) / 1e6
-    print(f"\n[model] ✓ Model saved → {path}  ({size_mb:.1f} MB)")
+    print(f"\n[model] [OK] Model saved -> {path}  ({size_mb:.1f} MB)")
 
 
 def load_model(path: str = MODEL_FILE) -> RandomForestRegressor:
@@ -185,9 +185,9 @@ def load_model(path: str = MODEL_FILE) -> RandomForestRegressor:
     return rf
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # 6. Save Stats
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 def save_stats(stats: dict, path: str = STATS_FILE):
 
     # Convert numpy types to native Python
@@ -201,12 +201,12 @@ def save_stats(stats: dict, path: str = STATS_FILE):
     }
     with open(path, "w") as f:
         json.dump(clean, f, indent=2)
-    print(f"[model] Stats saved → {path}")
+    print(f"[model] Stats saved -> {path}")
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # Main Pipeline
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 def run_modeling(df: pd.DataFrame, train: pd.DataFrame, test: pd.DataFrame) -> tuple:
     
     print("=" * 60)
@@ -249,7 +249,7 @@ def run_modeling(df: pd.DataFrame, train: pd.DataFrame, test: pd.DataFrame) -> t
     }
     save_stats(all_stats)
 
-    print("\n[run_modeling] ✓ Modeling complete.\n")
+    print("\n[run_modeling] [OK] Modeling complete.\n")
     return rf, rf_metrics, all_stats
 
 

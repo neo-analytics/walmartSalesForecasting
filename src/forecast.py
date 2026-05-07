@@ -22,9 +22,9 @@ os.makedirs(os.path.dirname(FORECAST_FILE), exist_ok=True)
 os.makedirs(PLOTS_DIR, exist_ok=True)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # Core Forecasting Logic (Per Store)
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 def forecast_store(
     store_df: pd.DataFrame,
     rf: RandomForestRegressor,
@@ -81,9 +81,9 @@ def forecast_store(
     return results
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # Forecast All Stores
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 def forecast_all_stores(df: pd.DataFrame, rf: RandomForestRegressor) -> pd.DataFrame:
     
     last_date = df["Date"].max()
@@ -101,19 +101,19 @@ def forecast_all_stores(df: pd.DataFrame, rf: RandomForestRegressor) -> pd.DataF
     forecast_df["Date"] = pd.to_datetime(forecast_df["Date"])
 
     print(
-        f"[forecast] ✓ Generated {len(forecast_df):,} forecast rows "
-        f"({df['Store'].nunique()} stores × {FORECAST_WEEKS} weeks)"
+        f"[forecast] [OK] Generated {len(forecast_df):,} forecast rows "
+        f"({df['Store'].nunique()} stores x {FORECAST_WEEKS} weeks)"
     )
     return forecast_df
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # Save Forecast CSV
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 def save_forecast(forecast_df: pd.DataFrame, path: str = FORECAST_FILE):
     
     forecast_df.to_csv(path, index=False)
-    print(f"[forecast] Forecast CSV saved → {path}")
+    print(f"[forecast] Forecast CSV saved -> {path}")
 
     # Print summary stats
     summary = forecast_df.groupby("Store")["Forecasted_Sales"].agg(
@@ -123,9 +123,9 @@ def save_forecast(forecast_df: pd.DataFrame, path: str = FORECAST_FILE):
     print(summary.head(10).to_string())
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Plot — Forecast for Top 5 Stores
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
+# Plot - Forecast for Top 5 Stores
+# -----------------------------------------------------------------------------
 def plot_forecast_top5(df: pd.DataFrame, forecast_df: pd.DataFrame) -> str:
     
     store_avg = df.groupby("Store")[TARGET_COL].mean().sort_values(ascending=False)
@@ -173,7 +173,7 @@ def plot_forecast_top5(df: pd.DataFrame, forecast_df: pd.DataFrame) -> str:
         ax.legend(fontsize=8, loc="upper left")
 
     plt.suptitle(
-        "12-Week Sales Forecast — Top 5 Performing Stores",
+        "12-Week Sales Forecast - Top 5 Performing Stores",
         fontsize=14,
         fontweight="bold",
         y=1.005,
@@ -183,13 +183,13 @@ def plot_forecast_top5(df: pd.DataFrame, forecast_df: pd.DataFrame) -> str:
     path = os.path.join(PLOTS_DIR, "10_forecast_top5_stores.png")
     fig.savefig(path, dpi=PLOT_DPI, bbox_inches="tight")
     plt.close(fig)
-    print(f"[forecast] Plot saved → {path}")
+    print(f"[forecast] Plot saved -> {path}")
     return path
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # Main Pipeline
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 def run_forecasting(df: pd.DataFrame, rf: RandomForestRegressor) -> pd.DataFrame:
     
     print("=" * 60)
@@ -200,7 +200,7 @@ def run_forecasting(df: pd.DataFrame, rf: RandomForestRegressor) -> pd.DataFrame
     save_forecast(forecast_df)
     plot_forecast_top5(df, forecast_df)
 
-    print("\n[run_forecasting] ✓ Forecasting complete.\n")
+    print("\n[run_forecasting] [OK] Forecasting complete.\n")
     return forecast_df
 
 

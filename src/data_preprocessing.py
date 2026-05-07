@@ -4,21 +4,21 @@ import json
 from config import RAW_DATA_FILE, FEATURE_COLS, TARGET_COL, LAG_PERIODS, ROLLING_WINDOW
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # 1. Load Raw Data
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 def load_raw_data(filepath: str = RAW_DATA_FILE) -> pd.DataFrame:
     
     df = pd.read_csv(filepath)
-    print(f"[load_raw_data] Loaded {df.shape[0]:,} rows × {df.shape[1]} columns")
+    print(f"[load_raw_data] Loaded {df.shape[0]:,} rows x {df.shape[1]} columns")
     print(f"  Columns : {list(df.columns)}")
     print(f"  Dtypes  :\n{df.dtypes.to_string()}")
     return df
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # 2. Cleaning
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     
     df = df.copy()
@@ -32,17 +32,17 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     # Null report
     null_counts = df.isnull().sum()
     print(f"\n[clean_data] Null counts per column:\n{null_counts.to_string()}")
-    print(f"  Date range : {df['Date'].min().date()}  →  {df['Date'].max().date()}")
+    print(f"  Date range : {df['Date'].min().date()}  ->  {df['Date'].max().date()}")
     print(
-        f"  Stores     : {df['Store'].nunique()} unique stores ({df['Store'].min()}–{df['Store'].max()})"
+        f"  Stores     : {df['Store'].nunique()} unique stores ({df['Store'].min()}-{df['Store'].max()})"
     )
 
     return df
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # 3. Descriptive Statistics
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 def describe_data(df: pd.DataFrame) -> pd.DataFrame:
 
     desc = df.describe()
@@ -50,9 +50,9 @@ def describe_data(df: pd.DataFrame) -> pd.DataFrame:
     return desc
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # 4. Feature Engineering
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     
     df = df.copy()
@@ -85,9 +85,9 @@ def engineer_features(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # 5. Train / Test Split
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 def train_test_split(df: pd.DataFrame, test_weeks: int = 12):
     
     split_date = df["Date"].max() - pd.Timedelta(weeks=test_weeks)
@@ -97,22 +97,22 @@ def train_test_split(df: pd.DataFrame, test_weeks: int = 12):
 
     print(f"\n[train_test_split] Split at: {split_date.date()}")
     print(
-        f"  Train : {len(train):,} rows  ({train['Date'].min().date()} → {train['Date'].max().date()})"
+        f"  Train : {len(train):,} rows  ({train['Date'].min().date()} -> {train['Date'].max().date()})"
     )
     print(
-        f"  Test  : {len(test):,}  rows  ({test['Date'].min().date()} → {test['Date'].max().date()})"
+        f"  Test  : {len(test):,}  rows  ({test['Date'].min().date()} -> {test['Date'].max().date()})"
     )
 
     return train, test
 
 
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 # Main Pipeline
-# ─────────────────────────────────────────────────────────────────────────────
+# -----------------------------------------------------------------------------
 def run_preprocessing(filepath: str = RAW_DATA_FILE):
     
     print("=" * 60)
-    print("  WALMART SALES — DATA PREPROCESSING")
+    print("  WALMART SALES - DATA PREPROCESSING")
     print("=" * 60)
 
     df_raw = load_raw_data(filepath)
